@@ -18,6 +18,11 @@ const ListItemSchema = new mongoose.Schema({
     ref: 'Agent',
     required: true
   },
+  createdBy: {
+    type: mongoose.Schema.ObjectId,
+    ref: 'User',
+    required: true
+  },
   createdAt: {
     type: Date,
     default: Date.now

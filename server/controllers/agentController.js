@@ -1,17 +1,32 @@
 // server/controllers/agentController.js
 const Agent = require('../models/Agent');
+const ListItem = require('../models/ListItem');
 
 // @desc    Get all agents
 // @route   GET /api/agents
 // @access  Private
 exports.getAgents = async (req, res) => {
   try {
-    const agents = await Agent.find();
+    const agents = await Agent.find({ createdBy: req.user._id });
+    
+    // Get record counts for each agent
+    const agentsWithCounts = await Promise.all(
+      agents.map(async (agent) => {
+        const count = await ListItem.countDocuments({
+          assignedTo: agent._id,
+          createdBy: req.user._id
+        });
+        return {
+          ...agent.toObject(),
+          recordCount: count
+        };
+      })
+    );
 
     res.status(200).json({
       success: true,
-      count: agents.length,
-      data: agents
+      count: agentsWithCounts.length,
+      data: agentsWithCounts
     });
   } catch (err) {
     res.status(500).json({
@@ -52,6 +67,9 @@ exports.getAgent = async (req, res) => {
 // @access  Private
 exports.createAgent = async (req, res) => {
   try {
+    // Add the admin's ID to the request body
+    req.body.createdBy = req.user._id;
+    
     const agent = await Agent.create(req.body);
 
     res.status(201).json({

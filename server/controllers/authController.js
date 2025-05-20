@@ -82,6 +82,21 @@ exports.register = async (req, res) => {
   const { email, password } = req.body;
 
   console.log("test",req.body);
+  // Check for email and password
+  if (!email || !password) {
+    return res.status(400).json({
+      success: false,
+      message: 'Please provide an email and password'
+    });
+  }
+  // Check for existing user
+  const existingUser = await User.findOne({ email });
+  if (existingUser) {
+    return res.status(400).json({
+      success: false,
+      message: 'An account with this email already exists'
+    });
+  }
 
   try {
     const user = await User.create({

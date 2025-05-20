@@ -18,8 +18,8 @@ exports.uploadList = async (req, res) => {
       });
     }
 
-    // Get all agents
-    const agents = await Agent.find();
+    // Get agents created by the current admin
+    const agents = await Agent.find({ createdBy: req.user._id });
     
     if (agents.length === 0) {
       return res.status(400).json({
@@ -40,7 +40,7 @@ exports.uploadList = async (req, res) => {
         .pipe(csv())
         .on('data', (data) => results.push(data))
         .on('end', async () => {
-          await processData(results, agents, res);
+          await processData(results, agents, req.user._id, res);
         });
       return;
     } else if (fileExt === '.xlsx' || fileExt === '.xls') {
@@ -50,7 +50,7 @@ exports.uploadList = async (req, res) => {
       const worksheet = workbook.Sheets[sheetName];
       const results = xlsx.utils.sheet_to_json(worksheet);
       
-      await processData(results, agents, res);
+      await processData(results, agents, req.user._id, res);
     } else {
       return res.status(400).json({
         success: false,
@@ -67,7 +67,7 @@ exports.uploadList = async (req, res) => {
 };
 
 // Process and distribute data
-const processData = async (data, agents, res) => {
+const processData = async (data, agents, adminId, res) => {
   try {
     // Validate data format
     for (const item of data) {
@@ -113,7 +113,8 @@ const processData = async (data, agents, res) => {
           firstName: item.FirstName,
           phone: item.Phone,
           notes: item.Notes || '',
-          assignedTo: agentId
+          assignedTo: agentId,
+          createdBy: adminId
         });
         savedItems.push(listItem);
       }
@@ -121,6 +122,9 @@ const processData = async (data, agents, res) => {
 
     // Format response with distribution summary
     const distributionSummary = await ListItem.aggregate([
+      {
+        $match: { createdBy: adminId }
+      },
       {
         $lookup: {
           from: 'agents',
@@ -161,7 +165,8 @@ const processData = async (data, agents, res) => {
 // @access  Private
 exports.getLists = async (req, res) => {
   try {
-    const items = await ListItem.find().populate('assignedTo', 'name email');
+    const items = await ListItem.find({ createdBy: req.user._id })
+                              .populate('assignedTo', 'name email');
 
     res.status(200).json({
       success: true,
@@ -181,8 +186,10 @@ exports.getLists = async (req, res) => {
 // @access  Private
 exports.getListsByAgent = async (req, res) => {
   try {
-    const items = await ListItem.find({ assignedTo: req.params.agentId })
-                              .populate('assignedTo', 'name email');
+    const items = await ListItem.find({ 
+      assignedTo: req.params.agentId,
+      createdBy: req.user._id 
+    }).populate('assignedTo', 'name email');
 
     res.status(200).json({
       success: true,

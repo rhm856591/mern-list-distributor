@@ -4,11 +4,14 @@ import { Formik, Form, Field, ErrorMessage } from 'formik';
 import * as Yup from 'yup';
 import axios from 'axios';
 import { toast } from 'react-toastify';
+import './Agents.css';
 
 const Agents = () => {
   const [agents, setAgents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [selectedAgent, setSelectedAgent] = useState(null);
+  const [showModal, setShowModal] = useState(false);
 
   useEffect(() => {
     const fetchAgents = async () => {
@@ -26,17 +29,14 @@ const Agents = () => {
     fetchAgents();
   }, [refreshTrigger]);
 
-  const handleDeleteAgent = async (id) => {
-    if (window.confirm('Are you sure you want to delete this agent?')) {
-      try {
-        await axios.delete(`/api/agents/${id}`);
-        toast.success('Agent deleted successfully');
-        setRefreshTrigger(prev => prev + 1);
-      } catch (err) {
-        console.error('Error deleting agent:', err);
-        toast.error('Failed to delete agent');
-      }
-    }
+  const handleViewAgent = (agent) => {
+    setSelectedAgent(agent);
+    setShowModal(true);
+  };
+
+  const closeModal = () => {
+    setShowModal(false);
+    setSelectedAgent(null);
   };
 
   // Initial form values for adding a new agent
@@ -83,7 +83,7 @@ const Agents = () => {
       
       <div className="card">
         <h3>Add New Agent</h3>
-                <Formik
+        <Formik
           initialValues={initialValues}
           validationSchema={validationSchema}
           onSubmit={onSubmit}
@@ -154,27 +154,78 @@ const Agents = () => {
         ) : agents.length === 0 ? (
           <p>No agents found. Please add some agents.</p>
         ) : (
-          <div>
-            {agents.map(agent => (
-              <div key={agent._id} className="agent-item">
-                <div className="agent-info">
-                  <h4>{agent.name}</h4>
-                  <p>Email: {agent.email}</p>
-                  <p>Mobile: {agent.mobile}</p>
-                </div>
-                <div className="agent-actions">
-                  <button
-                    className="btn btn-danger"
-                    onClick={() => handleDeleteAgent(agent._id)}
-                  >
-                    Delete
-                  </button>
-                </div>
-              </div>
-            ))}
+          <div className="table-responsive">
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Email</th>
+                  <th>Mobile</th>
+                  <th>Records Assigned</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {agents.map(agent => (
+                  <tr key={agent._id}>
+                    <td>{agent.name}</td>
+                    <td>{agent.email}</td>
+                    <td>{agent.mobile}</td>
+                    <td>{agent.recordCount}</td>
+                    <td>
+                      <button
+                        className="btn btn-primary btn-sm"
+                        onClick={() => handleViewAgent(agent)}
+                      >
+                        View Details
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
       </div>
+
+      {/* Agent Details Modal */}
+      {showModal && selectedAgent && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <div className="modal-header">
+              <h3>Agent Details</h3>
+              <button className="modal-close" onClick={closeModal}>×</button>
+            </div>
+            <div className="modal-body">
+              <div className="detail-item">
+                <label>Name:</label>
+                <span>{selectedAgent.name}</span>
+              </div>
+              <div className="detail-item">
+                <label>Email:</label>
+                <span>{selectedAgent.email}</span>
+              </div>
+              <div className="detail-item">
+                <label>Mobile:</label>
+                <span>{selectedAgent.mobile}</span>
+              </div>
+              <div className="detail-item">
+                <label>Records Assigned:</label>
+                <span>{selectedAgent.recordCount}</span>
+              </div>
+              <div className="detail-item">
+                <label>Created At:</label>
+                <span>{new Date(selectedAgent.createdAt).toLocaleString()}</span>
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-secondary" onClick={closeModal}>
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
